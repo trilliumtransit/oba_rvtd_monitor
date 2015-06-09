@@ -186,19 +186,28 @@ def inspect_gtfs_rt():
     # get OneBusAway vehicle positions
     oba_vehicles_result = requests.get(OBA_VEHICLES_URL)
     oba_vehicles = oba_vehicles_result.json()['data']['list']
+    oba_vehicles_trip_ids = []
     oba_vehicles_with_invalid_trip_id = []
     oba_vehicles_without_trip_id = []
+    oba_missing_active_trips = []
     for vehicle in oba_vehicles:
         if vehicle['tripId'] == '':
             oba_vehicles_without_trip_id.append(vehicle)
         else:
-            if vehicle['tripId'] not in active_trip_ids:
+            trip_id_stripped = vehicle['tripId'].replace('1739_', '', 1)
+            oba_vehicles_trip_ids.append(trip_id_stripped)
+            if trip_id_stripped not in active_trip_ids:
                 oba_vehicles_with_invalid_trip_id.append(vehicle)
+                
+    # calculate active trip ids not present in OBA
+    for trip_id in active_trip_ids:
+        if trip_id not in oba_vehicles_trip_ids:
+            oba_missing_active_trips.append(trip_id)
 
     # examine vehicles with trip ids for valid trip id and status
     vehicles_with_invalid_trip_id = []
     vehicles_with_stop_id = []
-    vehicle_tripids_with_trip_but_no_stop_id =[]
+    vehicle_tripids_with_trip_but_no_stop_id = []
     for entity in vehicles_with_trip:
         if entity.vehicle.trip.trip_id not in active_trip_ids:
             vehicles_with_invalid_trip_id.append(entity)
@@ -253,15 +262,19 @@ def inspect_gtfs_rt():
     logger.debug('{0} total vehicles with invalid trip_id'.format(len(vehicles_with_invalid_trip_id)))
     logger.debug('{0} total active trip_ids missing from vehicles'.format(len(missing_trip_ids_from_vehicles)))
     logger.debug('{0} total vehicles with stop id'.format(len(vehicles_with_stop_id)))
-    logger.debug('--------')
     
     for trip_id in vehicle_tripids_with_trip_but_no_stop_id:
-        logger.debug('vehicle with trip_id {0} without stop info'.format(trip_id))       
+        logger.debug('vehicle with trip_id {0} without stop info'.format(trip_id))
+    
+    logger.debug('--------')   
         
-    inspect_rvtd_streets_feed(logger)
+    inspect_rvtd_streets_feed(active_trip_ids, logger)
     
     logger.debug('OneBusAway')
     logger.debug('{0} total vehicles'.format(len(oba_vehicles)))
     logger.debug('{0} total vehicles with invalid trip_id'.format(len(oba_vehicles_with_invalid_trip_id)))
     logger.debug('{0} total vehicles without trip_id'.format(len(oba_vehicles_without_trip_id)))
+    logger.debug('{0} active trips missing from vehicles'.format(len(oba_missing_active_trips)))
+    for trip_id in oba_missing_active_trips:
+        logger.debug('active trip id {0} not in OBA'.format(trip_id))
     logger.debug('--------')    

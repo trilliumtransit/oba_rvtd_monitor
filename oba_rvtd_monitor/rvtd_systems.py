@@ -25,7 +25,7 @@ def print_or_log(s, logger):
         print(s)
 
 
-def inspect_rvtd_streets_feed(logger=None):
+def inspect_rvtd_streets_feed(active_trip_ids, logger=None):
     client = Client(RVTD_STREET_WSDL)
     result = client.service.GetVehicles(1)
         
@@ -33,12 +33,32 @@ def inspect_rvtd_streets_feed(logger=None):
         f.write(str(result))
     
     print_or_log('RVTD Streets Webservices', logger)
+    streets_trip_ids = []
+    streets_trips_without_next_stops = []
     for array_of_vehicle_data in result:
         print_or_log('{0} total vehicles in streets vehicles feed'.format(len(array_of_vehicle_data[1])), logger)
         for vehicle in array_of_vehicle_data[1]:
             if vehicle.CurrentWork:
                 trip = vehicle.CurrentWork.Trip
                 trip_id = trip.Key
+                streets_trip_ids.append(trip_id)
                 if vehicle.NextStops is None:
-                    print_or_log('Streets feed trip_id {0} without NextStops data'.format(trip_id), logger)
+                    streets_trips_without_next_stops.append(trip_id)
+    
+    print_or_log('{0} total vehicles with current work'.format(len(streets_trip_ids)), logger)
+    
+    streets_missing_active_trips = []
+    for trip_id in active_trip_ids:
+        if trip_id not in streets_trip_ids:
+            streets_missing_active_trips.append(trip_id)
+            
+    print_or_log('{0} total active trips not in Streets Webservice'.format(len(streets_missing_active_trips)), logger)
+    print_or_log('{0} total vehicles without next stops data'.format(len(streets_trips_without_next_stops)), logger)
+                 
+    for trip_id in streets_missing_active_trips:
+        print_or_log('active trip id {0} not in Streets Webservice'.format(trip_id), logger)
+            
+    for trip_id in streets_trips_without_next_stops:
+        print_or_log('Streets feed trip_id {0} without NextStops data'.format(trip_id), logger)
+    
     print_or_log('--------', logger)
