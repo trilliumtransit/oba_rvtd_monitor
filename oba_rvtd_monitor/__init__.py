@@ -127,6 +127,7 @@ def inspect_gtfs_rt():
     now = datetime.now()
     ten_minutes_from_now = now + timedelta(minutes=10)
     ten_minutes_ago = now - timedelta(minutes=10)
+    active_trips = []
     active_trip_ids = []
     for trip in schedule.GetTripList():
         if trip.service_id in service_ids_today:
@@ -135,6 +136,9 @@ def inspect_gtfs_rt():
             trip_end = trip.GetEndTime()
             trip_end = concat_date_and_seconds(today, trip_end)
             if trip_start < ten_minutes_from_now and trip_end > ten_minutes_ago:
+                active_trips.append(dict(trip_id=trip.trip_id,
+                                         trip_start=trip_start,
+                                         trip_end=trip_end))
                 active_trip_ids.append(trip.trip_id)            
             
     # get the gtfs-rts
@@ -234,6 +238,12 @@ def inspect_gtfs_rt():
     logger.debug('--------')
     logger.debug('GTFS')
     logger.debug('{0} total active trip ids'.format(len(active_trip_ids)))
+    
+    for trip in active_trips:
+        logger.debug('trip_id: {0} start: {1} end: {2}'.format(trip['trip_id'],
+                                                               trip['trip_start'].strftime('%H:%M'),
+                                                               trip['trip_end'].strftime('%H:%M')))
+        
     logger.debug('--------')
     logger.debug('GTFS-RT Trip Updates')
     logger.debug('{0} total trips in gtfs-rt'.format(len(trip_ids_in_gtfs_rt)))
