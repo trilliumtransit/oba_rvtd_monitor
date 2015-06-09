@@ -52,13 +52,22 @@ def inspect_rvtd_streets_feed(active_trip_ids, logger=None):
         if trip_id not in streets_trip_ids:
             streets_missing_active_trips.append(trip_id)
             
+    invalid_streets_trip_ids = []
+    for trip_id in streets_trip_ids:
+        if trip_id not in active_trip_ids:
+            invalid_streets_trip_ids.append(trip_id)
+            
     print_or_log('{0} total active trips not in Streets Webservice'.format(len(streets_missing_active_trips)), logger)
     print_or_log('{0} total vehicles without next stops data'.format(len(streets_trips_without_next_stops)), logger)
+    print_or_log('{0} total vehicles with invalid trip ids'.format(len(invalid_streets_trip_ids)), logger)
                  
     for trip_id in streets_missing_active_trips:
         print_or_log('active trip id {0} not in Streets Webservice'.format(trip_id), logger)
             
     for trip_id in streets_trips_without_next_stops:
         print_or_log('Streets feed trip_id {0} without NextStops data'.format(trip_id), logger)
+        
+    for trip_id in invalid_streets_trip_ids:
+        print_or_log('Streets feed trip_id {0} is invalid'.format(trip_id), logger)
     
     print_or_log('--------', logger)
