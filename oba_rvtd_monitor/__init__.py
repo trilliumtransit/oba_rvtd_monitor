@@ -44,8 +44,10 @@ GTFS_RT_TRIP = r'http://feed.rvtd.org/googleFeeds/realtime/trip_updates.proto'
 GTFS_RT_ALERT = r'http://feed.rvtd.org/googleFeeds/realtime/service_alerts.proto'
 GTFS_RT_VEHICLE = r'http://feed.rvtd.org/googleFeeds/realtime/vehicle_positions.proto'
 
-# gtfs_file_name = 'google_transit_{0}.zip'.format(datetime.now().strftime('%Y-%m-%d'))
-gtfs_file_name = 'google_transit_2015-04-29.zip'.format(datetime.now().strftime('%Y-%m-%d'))
+OBA_VEHICLES_URL = r'http://localhost:8080/onebusaway-api-webapp/api/where/vehicles-for-agency/1739.json?key=TEST'
+
+gtfs_file_name = 'google_transit.zip'.format(datetime.now().strftime('%Y-%m-%d'))
+# gtfs_file_name = 'google_transit_2015-04-29.zip'.format(datetime.now().strftime('%Y-%m-%d'))
 gtfs_file_name = os.path.join(DL_DIR, gtfs_file_name)
     
 
@@ -133,8 +135,7 @@ def inspect_gtfs_rt():
             trip_end = trip.GetEndTime()
             trip_end = concat_date_and_seconds(today, trip_end)
             if trip_start < ten_minutes_from_now and trip_end > ten_minutes_ago:
-                active_trip_ids.append(trip.trip_id)
-                
+                active_trip_ids.append(trip.trip_id)            
             
     # get the gtfs-rts
     
@@ -181,6 +182,18 @@ def inspect_gtfs_rt():
         vehicles.append(entity.id)
         if entity.vehicle.trip.trip_id:
             vehicles_with_trip.append(entity)
+            
+    # get OneBusAway vehicle positions
+    oba_vehicles_result = requests.get(OBA_VEHICLES_URL)
+    oba_vehicles = oba_vehicles_result.json()['data']['list']
+    oba_vehicles_with_invalid_trip_id = []
+    oba_vehicles_without_trip_id = []
+    for vehicle in oba_vehicles:
+        if vehicle['tripId'] == '':
+            oba_vehicles_without_trip_id.append(vehicle)
+        else:
+            if vehicle['tripId'] not in active_trip_ids:
+                oba_vehicles_with_invalid_trip_id.append(vehicle)
 
     # examine vehicles with trip ids for valid trip id and status
     vehicles_with_invalid_trip_id = []
@@ -207,13 +220,15 @@ def inspect_gtfs_rt():
             missing_trip_ids_from_vehicles.append(trip_id)
                     
     # prepare error reporting
+    logger.debug('------------------------------------------------------')
     logger.debug(now.strftime('%Y-%m-%d %H:%M'))
     logger.debug('--------')
-    
+    logger.debug('GTFS')
     logger.debug('{0} total active trip ids'.format(len(active_trip_ids)))
+    logger.debug('--------')
+    logger.debug('GTFS-RT Trip Updates')
     logger.debug('{0} total trips in gtfs-rt'.format(len(trip_ids_in_gtfs_rt)))
     logger.debug('{0} total trips in gtfs-rt with stop time updates'.format(len(trip_ids_with_stop_time_update)))
-    logger.debug('--------')    
     
     # determine trips without trip updates
     for trip_id in active_trip_ids:
@@ -227,12 +242,12 @@ def inspect_gtfs_rt():
             
     # service alerts
     logger.debug('--------')
-    logger.debug('--------')
+    logger.debug('GTFS-RT Service Alerts:')
     logger.debug('{0} total service alerts'.format(len(service_alerts)))
     logger.debug('--------')
     
     # vehicles stuff
-    logger.debug('--------')
+    logger.debug('GTFS-RT Vehicles')
     logger.debug('{0} total vehicles'.format(len(vehicles)))
     logger.debug('{0} total vehicles with trip data'.format(len(vehicles_with_trip)))
     logger.debug('{0} total vehicles with invalid trip_id'.format(len(vehicles_with_invalid_trip_id)))
@@ -243,9 +258,10 @@ def inspect_gtfs_rt():
     for trip_id in vehicle_tripids_with_trip_but_no_stop_id:
         logger.debug('vehicle with trip_id {0} without stop info'.format(trip_id))       
         
-    logger.debug('--------')
-    
     inspect_rvtd_streets_feed(logger)
     
-    logger.debug('--------')
-    logger.debug('--------')
+    logger.debug('OneBusAway')
+    logger.debug('{0} total vehicles'.format(len(oba_vehicles)))
+    logger.debug('{0} total vehicles with invalid trip_id'.format(len(oba_vehicles_with_invalid_trip_id)))
+    logger.debug('{0} total vehicles without trip_id'.format(len(oba_vehicles_without_trip_id)))
+    logger.debug('--------')    
